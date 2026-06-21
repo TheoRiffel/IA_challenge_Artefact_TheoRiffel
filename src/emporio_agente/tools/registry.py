@@ -83,5 +83,10 @@ def register_tools(agent) -> None:
         frete e entrega, garantia, promoções e dados da empresa. Use sempre que
         a pergunta for sobre uma regra/procedimento, e não sobre um produto ou
         pedido específico.
+
+        Retorna as seções mais relevantes do manual, cada uma com número
+        (section_id) e título. Baseie a resposta NO CONTEÚDO dessas seções e
+        ancore-a nelas de forma natural (ex.: "Pela nossa política de
+        devolução..."); cite o número da seção apenas quando ajudar.
         """
         return ctx.deps.policies.search(question)
