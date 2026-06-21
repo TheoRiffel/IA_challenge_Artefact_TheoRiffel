@@ -5,7 +5,7 @@ Lightweight RAG over the policy manual:
 - Section-aware chunks (see ``chunker``).
 - Local embeddings via sentence-transformers (BGE-M3 by default), computed once
   and cached to disk.
-- Retrieval = cosine similarity in numpy. With ~9 chunks there is no need for a
+- Retrieval = cosine similarity in numpy. With 26 chunks there is no need for a
   vector database; an in-memory matrix is faster, simpler, and fully
   reproducible. Rejecting a vector DB here is a deliberate scale-appropriate
   choice, mirroring the decision not to embed the structured data.

@@ -48,7 +48,7 @@ Cliente (CLI)
      ▼                                                  ▼
 ┌──────────────────────────────────────────┐   ┌────────────────────┐
 │  Camada de dados (lógica determinística)  │   │  PolicyRetriever    │
-│  • DataFrames dos CSVs                     │   │  • ~28 chunks/seção │
+│  • DataFrames dos CSVs                     │   │  • 26 chunks/seção  │
 │  • motor de preços (melhor preço, PIX,     │   │  • BGE-M3 local     │
 │    promo não-cumulativa)                   │   │  • cosine + keyword │
 │  • NÚMEROS NUNCA VÊM DO LLM                 │   └────────────────────┘
@@ -115,11 +115,11 @@ embutida nos dados que o agente passa.
 - **Chunking por seção**: o PDF tem cabeçalhos numerados limpos (1, 1.1, 2, ...).
   Dividimos nessas fronteiras para que cada chunk seja uma unidade coerente de
   política, em vez de janelas de tamanho fixo que poderiam cortar uma regra ao
-  meio. Resultado: ~28 chunks.
+  meio. Resultado: 26 chunks.
 - **Embeddings locais (BGE-M3)** via sentence-transformers, na GPU, calculados
   uma vez e cacheados em disco (`.embeddings.pkl`). Zero custo de API e
   reprodutível offline.
-- **Sem banco vetorial**: com ~28 chunks, similaridade de cosseno em numpy é
+- **Sem banco vetorial**: com 26 chunks, similaridade de cosseno em numpy é
   tudo que é preciso — mais rápido, mais simples e reprodutível. Rejeitar um
   vector DB aqui é uma escolha consciente de escala, espelhando a decisão de não
   embeddar os dados estruturados.
@@ -179,6 +179,7 @@ emporio-agente/
 │   └── tools/
 │       └── registry.py            # as 4 tools tipadas
 ├── tests/                         # testes da camada determinística (sem LLM)
+├── evals/                         # routing offline + qualidade opt-in/live
 ├── examples/                      # transcrições de conversas
 └── docs/ARCHITECTURE.md           # este documento
 ```
@@ -187,18 +188,20 @@ emporio-agente/
 
 ## 5. Por que essa camada é testável sem LLM
 
-Todos os 19 testes (`tests/`) exercitam preços, casos de borda dos dados e
-chunking de políticas **sem nenhuma chamada de modelo**. O motor de preços é o
-conjunto mais importante: fixa as regras de dinheiro (6.2) de forma
-determinística. Isso só é possível porque o agente é fino e as tools são gordas.
+Os 27 testes exercitam preços, casos de borda dos dados, chunking de políticas,
+validações defensivas e roteamento offline **sem nenhuma chamada de modelo**.
+O motor de preços é o conjunto mais importante: fixa as regras de dinheiro
+(6.2) de forma determinística. Isso só é possível porque o agente é fino e as
+tools são gordas.
 
 ---
 
 ## 6. Limitações conhecidas e próximos passos
 
 - **Persistência**: hoje em memória; com mais tempo, sessões em Redis/DB.
-- **Avaliação**: um pequeno *eval set* pontuando seleção de tool + acurácia da
-  resposta tornaria regressões visíveis.
+- **Avaliação**: já existe um *eval set* pequeno em `evals/`, com roteamento
+  offline e qualidade de resposta opt-in/live. O próximo passo é ampliar os
+  casos e pontuar os argumentos das tools, não apenas o conjunto de tools.
 - **Desambiguação de pedido**: hoje o cliente precisa informar o número do
   pedido; um fluxo por nome/telefone (cruzando `customers`) seria mais natural.
 - **Busca de produtos**: substring case-insensitive cobre bem o catálogo

@@ -20,7 +20,7 @@ da loja, e lida graciosamente com pedidos fora de escopo.
   elimina a possibilidade de o modelo *alucinar um preço*.
 - **Políticas** (PDF, prosa) → **RAG leve por seção**, com embeddings locais
   (BGE-M3) e busca por cosseno + fallback de palavra-chave. Sem banco vetorial:
-  com ~28 chunks, numpy basta.
+  com 26 chunks, numpy basta.
 
 Princípio que sustenta tudo: **os números nunca vêm do LLM**. Cada fato é
 calculado pela camada de dados e devolvido como objeto Pydantic tipado; o modelo
@@ -83,8 +83,8 @@ pip install -e ".[dev]"
 pytest -q
 ```
 
-Os 19 testes cobrem o **núcleo determinístico** (preços, casos de borda dos
-dados, chunking de políticas) **sem nenhuma chamada de LLM**.
+Os 27 testes cobrem o **núcleo determinístico** (preços, casos de borda dos
+dados, chunking de políticas e evals offline) **sem nenhuma chamada de LLM**.
 
 ---
 
@@ -104,7 +104,7 @@ do Pydantic AI.
 ### Trocando o modelo de embeddings
 
 ```bash
-# Mais leve/rápido (bom o suficiente para ~28 chunks):
+# Mais leve/rápido (bom o suficiente para 26 chunks):
 EMPORIO_EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 ```
 
@@ -118,7 +118,7 @@ EMPORIO_EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12
 | Abordagem | **Function calling + RAG (híbrido)** | Dados exatos → tools determinísticas; prosa → retrieval. Não embeddar dados estruturados evita alucinar números. |
 | Modelo de preços | **Versão "afiada"** | Aplica promoção ativa + regra de não-cumulatividade do PIX (seção 6.2), apresentando preço original e desconto. |
 | Embeddings | **BGE-M3 local (GPU)** | Sem custo de API, reprodutível offline, forte em PT-BR. |
-| Vector store | **Nenhum (numpy)** | ~28 chunks não justificam um banco vetorial; cosseno em memória é mais simples e rápido. |
+| Vector store | **Nenhum (numpy)** | 26 chunks não justificam um banco vetorial; cosseno em memória é mais simples e rápido. |
 | Interface | **CLI** | O foco é o agente correto, não a UI. |
 | Persistência | **Em memória, por sessão** | Escopo honesto de protótipo; abstração fina permite trocar por backend persistente. |
 | Persona | **Do próprio manual (7.1)** | "Informal mas profissional, como um amigo que entende de música." |
@@ -149,14 +149,13 @@ Veja [`examples/`](examples/) para transcrições reais cobrindo esses cenários
 ## Limitações conhecidas e próximos passos
 
 - **Persistência** apenas em memória; com mais tempo, sessões em Redis/DB.
-- **Avaliação**: falta um *eval set* automatizado pontuando seleção de tool e
-  acurácia — próximo passo natural para evitar regressões.
+- **Avaliação**: já há um conjunto pequeno em `evals/` para roteamento offline e
+  qualidade de resposta opt-in com modelo real; o próximo passo seria ampliar
+  os casos e pontuar também os argumentos das tools.
 - **Desambiguação de pedido** exige o número do pedido; um fluxo por
   nome/telefone (cruzando `customers`) seria mais natural.
 - **Busca de produtos** é por substring; em catálogos maiores, busca
   fuzzy/semântica sobre nomes ajudaria.
-- Dois chunks de política trazem um sub-passo numerado do fluxo de atendimento
-  como se fosse seção — inofensivo para a recuperação, mas limpável.
 
 ---
 
@@ -174,7 +173,6 @@ Este projeto foi desenvolvido com auxílio de **Claude** (Anthropic):
   iterado depois de inspecionar a extração real do pypdf, que cola cabeçalhos no
   corpo).
 - **Revisão**: as decisões e trade-offs foram revisados criticamente — preferindo
-  resultados honestos (ex.: documentar a limitação dos 2 chunks de política) a
-  afirmações exageradas.
+  resultados honestos e verificáveis a afirmações exageradas.
 
 O workflow priorizou raciocínio explícito e verificação empírica a cada passo.
