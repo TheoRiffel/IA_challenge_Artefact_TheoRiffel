@@ -137,6 +137,12 @@ class StoreData:
         only_in_stock: bool = True,
         limit: int = 8,
     ) -> ProductSearchResult:
+        # Normalise inputs: a blank query is "no query", and limit is clamped to
+        # a sane range so a bad argument can't ask for everything or nothing.
+        if query is not None and not query.strip():
+            query = None
+        limit = max(1, min(int(limit), 50))
+
         df = self.products.copy()
 
         if query:
@@ -207,7 +213,16 @@ class StoreData:
         return out
 
     def get_order(self, order_id: int) -> OrderStatus | None:
-        match = self.orders[self.orders["order_id"] == int(order_id)]
+        # Tolerate non-numeric or out-of-range ids: treat them as "not found"
+        # (return None) rather than throwing, so a bad tool argument degrades
+        # to a graceful "pedido não encontrado" instead of a crash.
+        try:
+            oid = int(order_id)
+        except (TypeError, ValueError):
+            return None
+        if oid <= 0:
+            return None
+        match = self.orders[self.orders["order_id"] == oid]
         if match.empty:
             return None
         row = match.iloc[0]
