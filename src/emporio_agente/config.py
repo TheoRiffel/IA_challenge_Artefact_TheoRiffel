@@ -14,6 +14,17 @@ from pathlib import Path
 # --- Paths -----------------------------------------------------------------
 PACKAGE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_ROOT.parent.parent
+
+# Load a local .env (if present) so EMPORIO_MODEL/API keys/base URLs defined
+# there take effect, as the README's `cp .env.example .env` workflow implies.
+# Existing environment variables win over the file.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(REPO_ROOT / ".env")
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    pass
+
 DATA_DIR = Path(os.environ.get("EMPORIO_DATA_DIR", REPO_ROOT / "data"))
 POLICY_PDF = DATA_DIR / "politicas_da_loja.pdf"
 # Cache for computed policy embeddings so the model only runs once.
