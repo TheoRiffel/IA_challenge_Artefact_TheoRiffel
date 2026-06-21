@@ -79,6 +79,7 @@ def chunk_policy_text(raw_text: str) -> list[PolicyChunk]:
     chunks: list[PolicyChunk] = []
     current_id = "0"
     current_title = "Apresentação"
+    current_top = 0  # top-level number of the section we are currently inside
     buffer: list[str] = []
 
     def flush() -> None:
@@ -98,9 +99,16 @@ def chunk_policy_text(raw_text: str) -> list[PolicyChunk]:
         if not stripped or _NOISE_RE.match(stripped):
             continue
         header = _split_header(stripped)
-        if header:
+        # A genuine header's top-level number never goes backwards: after "7"
+        # come "7.1", "7.2", "8"... never "3". A line starting with "3." while
+        # we are inside section 7 is a numbered list item (e.g. the steps of
+        # the "Fluxo de Atendimento Padrão"), not a section header. Treat it as
+        # body so it stays with its real section instead of forging a chunk
+        # that duplicates section_id "3".
+        if header and int(header[0].split(".")[0]) >= current_top:
             flush()
             current_id, current_title, inline = header
+            current_top = int(current_id.split(".")[0])
             buffer = [inline] if inline else []
         else:
             buffer.append(stripped)

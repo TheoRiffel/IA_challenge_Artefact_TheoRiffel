@@ -36,3 +36,13 @@ def test_no_empty_chunks():
     chunks = load_policy_chunks(POLICY_PDF)
     assert chunks
     assert all(len(c.text) > 40 for c in chunks)
+
+
+def test_no_duplicate_section_ids():
+    # Numbered list items inside a section (e.g. the steps of 7.2's "Fluxo de
+    # Atendimento Padrão") must not be mis-detected as top-level headers, which
+    # used to forge extra chunks duplicating section_ids "3" and "4".
+    chunks = load_policy_chunks(POLICY_PDF)
+    ids = [c.section_id for c in chunks]
+    dups = sorted({i for i in ids if ids.count(i) > 1})
+    assert not dups, f"duplicate section_ids: {dups}"
