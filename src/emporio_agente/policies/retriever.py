@@ -20,9 +20,12 @@ from __future__ import annotations
 
 import pickle
 import re
+import warnings
 from pathlib import Path
 
 import numpy as np
+
+_MINILM = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 from ..config import EMBEDDING_CACHE, EMBEDDING_MODEL, POLICY_PDF, RETRIEVAL_TOP_K
 from ..models import PolicyAnswer, PolicyChunk
@@ -57,9 +60,24 @@ class PolicyRetriever:
     @property
     def model(self):
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
-
-            self._model = SentenceTransformer(self.model_name)
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError as exc:
+                raise RuntimeError(
+                    "O pacote 'sentence-transformers' não está instalado, mas é "
+                    "necessário para o RAG de políticas. Instale com "
+                    "`pip install -e .` (ou `pip install sentence-transformers`). "
+                    f"Para um download mais leve, defina EMPORIO_EMBEDDING_MODEL={_MINILM}."
+                ) from exc
+            try:
+                self._model = SentenceTransformer(self.model_name)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Falha ao carregar o modelo de embeddings '{self.model_name}': "
+                    f"{exc}. O modelo é baixado na primeira execução — verifique a "
+                    f"conexão, ou use um modelo mais leve definindo "
+                    f"EMPORIO_EMBEDDING_MODEL={_MINILM}."
+                ) from exc
         return self._model
 
     def _embed(self, texts: list[str]) -> np.ndarray:
@@ -70,17 +88,39 @@ class PolicyRetriever:
 
     # -- Index build / load -------------------------------------------------
     def build(self, use_cache: bool = True) -> "PolicyRetriever":
-        if use_cache and self.cache_path.exists():
-            with open(self.cache_path, "rb") as fh:
-                payload = pickle.load(fh)
-            if payload.get("model_name") == self.model_name:
-                self.chunks = [PolicyChunk(**c) for c in payload["chunks"]]
-                self._matrix = payload["matrix"]
-                return self
+        if use_cache and self.cache_path.exists() and self._load_cache():
+            return self
 
         self.chunks = load_policy_chunks(self.pdf_path)
         self._matrix = self._embed([c.text for c in self.chunks])
+        self._save_cache()
+        return self
 
+    def _load_cache(self) -> bool:
+        """Load embeddings from the cache, returning ``False`` to trigger a
+        rebuild when the cache is corrupt/unreadable or was built with a
+        different embedding model (so a stale cache never crashes startup)."""
+        try:
+            with open(self.cache_path, "rb") as fh:
+                payload = pickle.load(fh)
+            if payload.get("model_name") != self.model_name:
+                return False  # built with a different model -> rebuild
+            self.chunks = [PolicyChunk(**c) for c in payload["chunks"]]
+            self._matrix = payload["matrix"]
+            return True
+        except (
+            pickle.UnpicklingError, EOFError, AttributeError, ImportError,
+            ModuleNotFoundError, KeyError, TypeError, ValueError, OSError,
+        ) as exc:
+            warnings.warn(
+                f"Cache de embeddings inválido em {self.cache_path} ({exc}); "
+                "reconstruindo do zero.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            return False
+
+    def _save_cache(self) -> None:
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.cache_path, "wb") as fh:
             pickle.dump(
@@ -91,7 +131,6 @@ class PolicyRetriever:
                 },
                 fh,
             )
-        return self
 
     # -- Query --------------------------------------------------------------
     def search(self, query: str, top_k: int | None = None) -> PolicyAnswer:
