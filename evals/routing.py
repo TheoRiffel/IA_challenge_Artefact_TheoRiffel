@@ -1,4 +1,4 @@
-"""Tier 1 — tool-routing harness.
+"""Tier 2 — tool-routing harness.
 
 Runs every :data:`evals.cases.CASES` message through the agent, captures the
 tool set the agent actually invoked, and scores it against ``expected_tools``.
@@ -8,8 +8,8 @@ Notes on construction:
   real provider and then ``Agent.override(...)``-ing it. The configured Ollama
   provider raises at construction time when ``OLLAMA_BASE_URL`` is unset, so
   building the real model would make the offline tier fail in CI. Passing the
-  model in at build time is the supported, env-free path and keeps Tier 1 truly
-  offline. The same harness accepts a real model for the live routing check.
+  model in at build time is the supported, env-free path and keeps this tier
+  truly offline. The same harness accepts a real model for live routing.
 - Offline deps use the real :class:`StoreData` (deterministic, fast, no
   network) and a fake policy retriever, so the policy tool executes without
   downloading the embedding model.

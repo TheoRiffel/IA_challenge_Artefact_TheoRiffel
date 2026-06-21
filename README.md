@@ -171,6 +171,30 @@ testáveis em [`docs/RESPONSE_CONTRACTS.md`](docs/RESPONSE_CONTRACTS.md).
 
 ---
 
+## Avaliação
+
+Três tiers, do mais barato/determinístico ao mais caro. Detalhes em
+[`evals/README.md`](evals/README.md); as obrigações verificadas estão em
+[`docs/RESPONSE_CONTRACTS.md`](docs/RESPONSE_CONTRACTS.md).
+
+```bash
+pytest tests/ -q            # Tier 1 — núcleo determinístico
+python -m evals.run         # Tier 1 + Tier 2 (offline, sem chave)
+python -m evals.run --live  # + Tier 3 (qualidade de resposta, requer chave de API)
+```
+
+| Tier | O que mede | Score |
+|---|---|---|
+| **1 — Núcleo determinístico** | pricing, dados, chunking, validação (pytest) | **27/27** |
+| **2 — Roteamento de tools** | tool correta por mensagem (offline) | **12/12** |
+| **3 — Qualidade de resposta** | contratos vs. ground truth do `StoreData` | requer chave de API |
+
+> Tier 1 e 2 rodam offline, sem chave — os números acima são reais (medidos com
+> `python -m evals.run`). A Tier 3 é opt-in e depende de um modelo real, então
+> não fixamos um número aqui em vez de inventá-lo.
+
+---
+
 ## Limitações conhecidas e próximos passos
 
 - **Persistência** apenas em memória; com mais tempo, sessões em Redis/DB.

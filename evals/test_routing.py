@@ -1,4 +1,4 @@
-"""Tier 1 pytest integration — offline, deterministic, no API key."""
+"""Tier 2 pytest integration — offline tool routing, deterministic, no API key."""
 
 from __future__ import annotations
 

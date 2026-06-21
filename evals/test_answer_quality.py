@@ -1,4 +1,4 @@
-"""Tier 2 pytest integration — opt-in, needs a real model.
+"""Tier 3 pytest integration — answer quality, opt-in, needs a real model.
 
 Marked ``live`` and skipped when the configured provider's key/endpoint is
 absent, so CI without secrets stays green. Run explicitly with:
