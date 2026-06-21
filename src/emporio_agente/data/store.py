@@ -29,6 +29,16 @@ from ..models import (
     ProductSummary,
 )
 from ..pricing import compute_price
+from .search import (
+    ACCESSORY_OUT_OF_SCOPE_NOTE,
+    AMBIGUOUS_CORDAS_NOTE,
+    TermClass,
+    classify_term,
+    fuzzy_best_name,
+    fuzzy_name_matches,
+    normalize,
+    resolve_category,
+)
 
 
 class StoreData:
@@ -118,14 +128,24 @@ class StoreData:
         return self._build_product(match.iloc[0])
 
     def find_product_by_name(self, name: str) -> Product | None:
-        """Best-effort exact-ish lookup by name (case-insensitive substring)."""
-        q = name.strip().lower()
-        mask = self.products["name"].str.lower().str.contains(q, regex=False, na=False)
-        match = self.products[mask]
-        if match.empty:
+        """Lookup by name: accent/case-insensitive substring first, then a
+        conservative fuzzy fallback so near-misses (typos) still match."""
+        q = normalize(name)
+        if not q:
             return None
-        # Prefer the shortest name that matches (closest to an exact hit).
-        match = match.assign(_len=match["name"].str.len()).sort_values("_len")
+
+        names = self.products["name"].tolist()
+
+        # 1. Accent-insensitive substring; prefer the shortest (closest to exact).
+        subs = [n for n in names if q in normalize(n)]
+        if subs:
+            best = min(subs, key=len)
+        else:
+            # 2. Fuzzy fallback on names.
+            best = fuzzy_best_name(name, names)
+        if not best:
+            return None
+        match = self.products[self.products["name"] == best]
         return self._build_product(match.iloc[0])
 
     def search_products(
@@ -143,23 +163,57 @@ class StoreData:
             query = None
         limit = max(1, min(int(limit), 50))
 
+        # Classify the free-text query before searching. An ambiguous term
+        # ("cordas") or an out-of-scope accessory must NOT be silently treated as
+        # a confident product search — we surface a disambiguation signal and
+        # return no products so the agent can clarify or refuse.
+        if query:
+            klass, canonical = classify_term(query)
+            if klass is TermClass.AMBIGUOUS:
+                return ProductSearchResult(
+                    query_summary=f"busca por '{query}' (ambígua)",
+                    count=0,
+                    products=[],
+                    disambiguation=AMBIGUOUS_CORDAS_NOTE,
+                )
+            if klass is TermClass.ACCESSORY_OUT_OF_SCOPE:
+                return ProductSearchResult(
+                    query_summary=f"busca por '{query}' (acessório fora de escopo)",
+                    count=0,
+                    products=[],
+                    disambiguation=ACCESSORY_OUT_OF_SCOPE_NOTE,
+                )
+            # A category synonym ("violao", "sax") becomes a category filter.
+            if klass is TermClass.CATEGORY and not category_name:
+                category_name = canonical
+                query = None
+
         df = self.products.copy()
 
         if query:
-            q = query.strip().lower()
-            name_hit = df["name"].str.lower().str.contains(q, regex=False, na=False)
-            desc_hit = df["description"].str.lower().str.contains(
-                q, regex=False, na=False
-            )
-            df = df[name_hit | desc_hit]
+            nq = normalize(query)
+            name_hit = df["name"].map(normalize).str.contains(nq, regex=False)
+            desc_hit = df["description"].map(normalize).str.contains(nq, regex=False)
+            hits = df[name_hit | desc_hit]
+            if hits.empty:
+                # Fuzzy fallback on product names (typos / near-misses).
+                fuzzy = set(fuzzy_name_matches(query, df["name"].tolist()))
+                hits = df[df["name"].isin(fuzzy)]
+            df = hits
 
         if category_name:
-            cat = category_name.strip().lower()
-            cat_ids = [
-                cid
-                for cid, cname in self._category_by_id.items()
-                if cat in cname.lower()
-            ]
+            canon = resolve_category(category_name, self._category_by_id.values())
+            if canon is not None:
+                cat_ids = [
+                    cid for cid, cname in self._category_by_id.items() if cname == canon
+                ]
+            else:
+                nt = normalize(category_name)
+                cat_ids = [
+                    cid
+                    for cid, cname in self._category_by_id.items()
+                    if nt in normalize(cname)
+                ]
             df = df[df["category_id"].isin(cat_ids)]
 
         products = [self._build_product(r) for _, r in df.iterrows()]

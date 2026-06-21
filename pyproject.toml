@@ -12,6 +12,7 @@ dependencies = [
     "sentence-transformers>=2.6",
     "pypdf>=4.0",
     "python-dotenv>=1.0",
+    "rapidfuzz>=3.0",
 ]
 
 [project.optional-dependencies]

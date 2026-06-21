@@ -82,6 +82,14 @@ class ProductSearchResult(BaseModel):
     query_summary: str
     count: int
     products: list[ProductSummary] = Field(default_factory=list)
+    disambiguation: str | None = Field(
+        default=None,
+        description=(
+            "Sinal de roteamento: preenchido quando o termo é ambíguo (ex.: "
+            "'cordas') ou um acessório fora de escopo. Quando presente, o agente "
+            "deve esclarecer com o cliente em vez de assumir."
+        ),
+    )
 
 
 class OrderItem(BaseModel):

@@ -5,3 +5,4 @@ numpy>=1.24
 sentence-transformers>=2.6
 pypdf>=4.0
 python-dotenv>=1.0
+rapidfuzz>=3.0

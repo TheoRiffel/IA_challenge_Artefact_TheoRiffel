@@ -36,6 +36,10 @@ def register_tools(agent) -> None:
         Categorias válidas: Guitarras, Baixos, Baterias e Percussão, Teclados e
         Pianos, Violões, Instrumentos de Sopro (Madeiras), Instrumentos de Sopro
         (Metais), Cordas Orquestrais, Ukuleles.
+
+        Se o resultado vier com o campo 'disambiguation' preenchido (ex.: o termo
+        'cordas' é ambíguo, ou é um acessório que a loja não vende), NÃO assuma:
+        peça esclarecimento ao cliente ou explique o escopo.
         """
         return ctx.deps.store.search_products(
             query=query,
