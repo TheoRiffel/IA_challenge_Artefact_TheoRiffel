@@ -4,34 +4,29 @@ Demonstra o caso de borda mais importante: um produto com **promoção ativa**,
 onde a regra de **não-cumulatividade do PIX** (política 6.2) decide o melhor
 preço. Os valores vêm do motor de preços determinístico, não do modelo.
 
-> Produto: Taylor 110e Dreadnought (id 94) — preço de tabela R$ 5.999,00,
-> promoção ativa "Desconto Exclusivo" de 8%.
-> Cálculo da camada de dados: promo = R$ 5.519,08 · PIX = R$ 5.699,05 ·
-> melhor preço = **R$ 5.519,08** (promo vence; PIX não acumula).
+> **Execução real** — gerada em **2026-06-21** com `EMPORIO_MODEL=anthropic:claude-sonnet-4-5`, via:
+> `python -m emporio_agente.cli --once "quanto custa o Taylor 110e?"`
+> A resposta abaixo é a saída literal do modelo.
+
+> **Ground truth (camada de dados)** — Taylor 110e Dreadnought Natural (id 94):
+> tabela R$ 5.999,00 · promoção ativa "Desconto Exclusivo" 8% → R$ 5.519,08 ·
+> PIX R$ 5.699,05 · **melhor preço R$ 5.519,08** (promo vence; PIX não acumula) ·
+> 4 unidades em estoque.
 
 ---
 
-**Você:** oi, quanto tá o Taylor 110e?
+**Você:** quanto custa o Taylor 110e?
 
-**Assistente:** Oi! 🎸 Boa escolha — o **Taylor 110e Dreadnought Natural** é um
-violão excelente. Olha as condições:
+**Assistente:** Opa! O **Taylor 110e Dreadnought Natural** está disponível aqui na loja! 🎸
 
-- Preço de tabela: **R$ 5.999,00**
-- Está com **8% de desconto** na promoção "Desconto Exclusivo": **R$ 5.519,08**
+Esse violão é top: tampo sólido em Sitka Spruce, eletrônica ES2 da Taylor — ideal pra quem quer um som amplificado de alta fidelidade no palco.
 
-Esse já é o melhor preço disponível. Vale lembrar que o desconto de 5% no PIX
-não acumula com a promoção — e, neste caso, a promoção sai mais vantajosa que o
-PIX mesmo. Temos em estoque. Quer que eu veja condições de parcelamento ou mais
-algum detalhe do instrumento?
+**Preço:**
+- **De:** R$ 5.999,00
+- **Por:** R$ 5.519,08 **(8% OFF)** na promoção **Desconto Exclusivo**
 
----
+💡 *Lembrando que o desconto do PIX (5%) não acumula com a promoção, então o melhor preço é o promocional mesmo: **R$ 5.519,08**.*
 
-**Você:** e parcelado?
+Temos **4 unidades** em estoque!
 
-**Assistente:** Dá pra parcelar em até **12x sem juros** no cartão de crédito
-(parcela mínima de R$ 100,00 nessa faixa). No valor de tabela, daria
-aproximadamente R$ 499,92 por mês em 12x.
-
-Só um detalhe importante: o preço promocional de R$ 5.519,08 é uma condição à
-vista. No parcelado, vale o preço de tabela. Quer que eu confirme alguma outra
-forma de pagamento?
+Posso te ajudar com mais alguma coisa? 😊
