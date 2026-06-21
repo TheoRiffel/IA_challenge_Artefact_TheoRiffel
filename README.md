@@ -127,6 +127,27 @@ Justificativas completas em [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
+## Decisões e alternativas rejeitadas
+
+Tão importante quanto o que foi escolhido é o que foi **deliberadamente
+descartado**:
+
+| Alternativa considerada | Por que NÃO foi escolhida |
+|---|---|
+| **RAG sobre os CSVs** | Dados exatos pedem consulta determinística; embeddar 65 linhas pode alucinar um preço. |
+| **Banco vetorial para ~26 chunks** | Cosseno em numpy é mais simples e rápido nessa escala. |
+| **SQL agent** (texto → SQL) | Com 6 padrões de consulta, tools tipadas são mais seguras e testáveis que geração de SQL. |
+| **Vercel AI SDK como implementação principal** | A única restrição obrigatória é Python; Pydantic AI entrega a mesma trocabilidade respeitando-a. |
+
+Também foi considerada — e **deliberadamente adiada** — uma camada de *runtime
+port* (um `AgentRuntime` genérico por cima do Pydantic AI) para abstrair o
+framework do agente. Com uma única implementação concreta hoje, isso seria
+generalidade especulativa: a costura natural já está em `agent.py`
+(`build_agent`), e este README documenta **onde** ela ficaria em vez de manter
+uma abstração vazia.
+
+---
+
 ## Comportamentos que valem destacar
 
 Casos de borda presentes nos dados e tratados de forma deliberada:
