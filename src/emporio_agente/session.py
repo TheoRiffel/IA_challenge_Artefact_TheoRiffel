@@ -21,12 +21,15 @@ class ChatSession:
         self.agent = build_agent(model)
         self.deps = deps or AgentDependencies.build()
         self.history: list[ModelMessage] = []
+        # Raw result of the most recent turn, exposed for the debug trace.
+        self.last_result = None
 
     async def send(self, user_message: str) -> str:
         result = await self.agent.run(
             user_message, deps=self.deps, message_history=self.history
         )
         self.history = result.all_messages()
+        self.last_result = result
         return result.output
 
     def send_sync(self, user_message: str) -> str:
@@ -34,7 +37,9 @@ class ChatSession:
             user_message, deps=self.deps, message_history=self.history
         )
         self.history = result.all_messages()
+        self.last_result = result
         return result.output
 
     def reset(self) -> None:
         self.history = []
+        self.last_result = None

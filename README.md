@@ -76,6 +76,19 @@ python -m emporio_agente.cli
 
 Comandos na CLI: `/reset` (limpa o histórico), `/sair`.
 
+### Modo debug / trace (revisão)
+
+```bash
+python -m emporio_agente.cli --debug              # ou EMPORIO_DEBUG=1
+python -m emporio_agente.cli --once "..." --debug
+```
+
+Com o debug ligado, após cada turno o agente imprime no **stderr** um trace
+compacto: a(s) tool(s) selecionada(s) e seus argumentos, um resumo de uma linha
+do resultado de cada tool, o modelo usado e a latência (ms). A resposta ao
+cliente continua limpa no **stdout**. Desligado por padrão, sem efeito algum
+quando não usado.
+
 ### 5. Testes
 
 ```bash
@@ -83,8 +96,9 @@ pip install -e ".[dev]"
 pytest -q
 ```
 
-Os 27 testes cobrem o **núcleo determinístico** (preços, casos de borda dos
-dados, chunking de políticas e evals offline) **sem nenhuma chamada de LLM**.
+Os testes cobrem o **núcleo determinístico** (preços, casos de borda dos dados,
+chunking de políticas, busca/desambiguação, formatação do trace e evals offline)
+**sem nenhuma chamada de LLM**.
 
 ---
 

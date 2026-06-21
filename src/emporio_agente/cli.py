@@ -9,9 +9,11 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 
 from .config import MODEL
 from .session import ChatSession
+from .trace import format_trace
 
 BANNER = """\
 ╭──────────────────────────────────────────────╮
@@ -50,6 +52,23 @@ def _credential_hint() -> str | None:
     return None
 
 
+def _debug_enabled(flag: bool) -> bool:
+    """Debug on via --debug or EMPORIO_DEBUG (1/true/yes/on)."""
+    return flag or os.environ.get("EMPORIO_DEBUG", "").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
+
+def _send(session: ChatSession, message: str, debug: bool) -> str:
+    """Run one turn, emitting a debug trace to stderr when enabled."""
+    start = time.perf_counter()
+    reply = session.send_sync(message)
+    if debug and session.last_result is not None:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        print(format_trace(session.last_result, MODEL, elapsed_ms), file=sys.stderr)
+    return reply
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="emporio",
@@ -60,7 +79,14 @@ def main(argv: list[str] | None = None) -> int:
         metavar="MENSAGEM",
         help="Executa um único turno com MENSAGEM e sai (modo não interativo).",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Imprime no stderr um trace (tools, argumentos, modelo, latência) "
+        "após cada turno. Também ativável via EMPORIO_DEBUG=1.",
+    )
     args = parser.parse_args(argv)
+    debug = _debug_enabled(args.debug)
 
     hint = _credential_hint()
     if hint:
@@ -76,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     # Single-turn mode: print only the reply, so it is easy to script/pipe.
     if args.once is not None:
         try:
-            print(session.send_sync(args.once))
+            print(_send(session, args.once, debug))
             return 0
         except Exception as exc:  # pragma: no cover - runtime diagnostics
             print(f"[erro] {exc}", file=sys.stderr)
@@ -103,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
             continue
 
         try:
-            reply = session.send_sync(user)
+            reply = _send(session, user, debug)
         except Exception as exc:  # pragma: no cover - runtime diagnostics
             print(f"[erro] {exc}\n", file=sys.stderr)
             continue
