@@ -165,6 +165,10 @@ Casos de borda presentes nos dados e tratados de forma deliberada:
 
 Veja [`examples/`](examples/) para transcrições reais cobrindo esses cenários.
 
+As obrigações factuais de cada tipo de resposta (o que uma resposta correta
+precisa conter, e o que não pode conter) estão formalizadas como contratos
+testáveis em [`docs/RESPONSE_CONTRACTS.md`](docs/RESPONSE_CONTRACTS.md).
+
 ---
 
 ## Limitações conhecidas e próximos passos
