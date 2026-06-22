@@ -1,0 +1,23 @@
+# Keep the build context (and image) small and secret-free.
+.git
+.gitignore
+.venv
+venv
+__pycache__
+**/__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+
+# Secrets — provided at runtime via env_file/-e, never baked into a layer.
+.env
+
+# Local caches that must not leak into the image (rebuilt at runtime).
+.embeddings.pkl
+**/.embeddings.pkl
+
+# Not needed to run the agent.
+docs/
+examples/
+emporio-agente.tar.gz
+.DS_Store

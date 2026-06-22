@@ -102,6 +102,46 @@ chunking de políticas, busca/desambiguação, formatação do trace e evals off
 
 ---
 
+## Rodar com Docker (sem setup local de Python)
+
+Para avaliar sem instalar Python/venv nem as dependências de ML na máquina:
+
+```bash
+cp .env.example .env          # preencha a chave do provedor (ou um modelo local — abaixo)
+docker compose build
+docker compose run --rm app   # CLI interativa; saia com /sair
+```
+
+Use `docker compose run --rm app` (e **não** `up`): a CLI é interativa, então
+precisa do TTY anexado e do container encerrando limpo ao digitar `/sair`.
+
+Um único turno (bom para script/demo):
+
+```bash
+docker compose run --rm app python -m emporio_agente.cli --once "Quanto custa o Taylor 110e?"
+```
+
+Detalhes do que a imagem faz de propósito:
+
+- **Imagem enxuta (~1,7 GB):** instala **torch CPU-only** (não baixa ~2,5 GB de
+  libs CUDA). O modelo de embeddings **não** é embutido na imagem.
+- **Cache persistente:** o modelo de embeddings e os embeddings calculados são
+  baixados **uma vez** para um volume (`emporio-cache`, montado em `/cache` via
+  `HF_HOME`); execuções seguintes sobem instantâneas.
+- **Embeddings mais leves por padrão:** a imagem usa
+  `paraphrase-multilingual-MiniLM-L12-v2` para o primeiro run ser rápido. Para
+  qualidade máxima de retrieval, sobreescreva com
+  `EMPORIO_EMBEDDING_MODEL=BAAI/bge-m3` no `.env`.
+- **Segredos só em runtime:** a chave de API entra via `env_file: .env`, nunca
+  é gravada em uma camada da imagem (`.env` está no `.gitignore` **e** no
+  `.dockerignore`).
+
+A troca do modelo de chat é por variável de ambiente (no `.env`), tanto para um
+provedor hospedado quanto para um modelo local/self-hosted — veja a seção
+seguinte.
+
+---
+
 ## Trocando o provedor do modelo
 
 A trocabilidade foi um objetivo de design. Mude apenas `EMPORIO_MODEL`:
@@ -114,6 +154,53 @@ EMPORIO_MODEL=ollama:llama3.1                 # local, via Ollama
 
 Nenhuma outra linha do código muda. Isso é viabilizado pela abstração de modelo
 do Pydantic AI.
+
+### Rodar com um modelo local / self-hosted (qualquer endpoint OpenAI-compatível)
+
+O modelo de chat é selecionado por `EMPORIO_MODEL` e alcança o provedor por uma
+API **compatível com OpenAI**. **Qualquer** servidor que exponha essa API
+funciona — basta apontar três coisas:
+
+```bash
+EMPORIO_MODEL=qwen2.5:7b                          # o nome/tag servido lá
+EMPORIO_OPENAI_BASE_URL=http://localhost:11434/v1 # o endpoint OpenAI-compatível
+OPENAI_API_KEY=sk-local                           # placeholder; servidores locais não checam
+```
+
+Quando `EMPORIO_OPENAI_BASE_URL` está definido, `build_agent` roteia o mesmo
+`EMPORIO_MODEL` por esse endpoint (mudança apenas em `config.py`/`agent.py`);
+nada mais no código muda. Como os embeddings já são **locais**, isso faz o
+sistema inteiro rodar **sem nenhuma API paga**.
+
+Servidores **comprovadamente compatíveis** (lista ilustrativa, não exaustiva —
+*qualquer* servidor OpenAI-compatível serve):
+
+| Servidor | Base URL típica |
+|---|---|
+| Ollama | `http://localhost:11434/v1` |
+| vLLM | `http://localhost:8000/v1` |
+| LM Studio | `http://localhost:1234/v1` |
+| llama.cpp (`llama-server`) | `http://localhost:8080/v1` |
+| text-generation-inference (TGI) | `http://localhost:8080/v1` |
+| LocalAI | `http://localhost:8080/v1` |
+
+**Rede no Docker:** um servidor de modelo rodando no **host** é alcançado de
+dentro do container por `host.docker.internal` (no Linux, o `compose.yml` já
+adiciona `--add-host=host.docker.internal:host-gateway`):
+
+```bash
+EMPORIO_OPENAI_BASE_URL=http://host.docker.internal:11434/v1
+```
+
+Alternativamente, o servidor poderia subir como **outro serviço no mesmo
+compose**, alcançado pelo nome do serviço (ex.: `http://ollama:11434/v1`) — fica
+como opção, não como o compose padrão deste protótipo, que é de um serviço só.
+
+> Duas ressalvas honestas: **(a)** modelos locais pequenos costumam ser mais
+> fracos em seleção de tools e em seguir persona/escopo do que um modelo
+> hospedado forte — isso é limitação **do modelo**, não do sistema (a Tier 3 dos
+> evals torna a diferença visível); **(b)** os embeddings são locais de qualquer
+> forma, então operar **ponta a ponta sem API paga** sempre foi suportado.
 
 ### Trocando o modelo de embeddings
 
@@ -131,7 +218,7 @@ EMPORIO_EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12
 | Framework do agente | **Pydantic AI** | Trocabilidade de modelo (1 var de ambiente), tools tipadas, dependency injection. Respeita a restrição "Python". |
 | Abordagem | **Function calling + RAG (híbrido)** | Dados exatos → tools determinísticas; prosa → retrieval. Não embeddar dados estruturados evita alucinar números. |
 | Modelo de preços | **Versão "afiada"** | Aplica promoção ativa + regra de não-cumulatividade do PIX (seção 6.2), apresentando preço original e desconto. |
-| Embeddings | **BGE-M3 local (GPU)** | Sem custo de API, reprodutível offline, forte em PT-BR. |
+| Embeddings | **BGE-M3 local (GPU ou CPU)** | Totalmente local (zero API), reprodutível offline, forte em PT-BR. Só o modelo de chat precisa de chave → dá pra rodar sem nenhuma API paga. |
 | Vector store | **Nenhum (numpy)** | 26 chunks não justificam um banco vetorial; cosseno em memória é mais simples e rápido. |
 | Interface | **CLI** | O foco é o agente correto, não a UI. |
 | Persistência | **Em memória, por sessão** | Escopo honesto de protótipo; abstração fina permite trocar por backend persistente. |
@@ -160,6 +247,14 @@ generalidade especulativa: a costura natural já está em `agent.py`
 (`build_agent`), e este README documenta **onde** ela ficaria em vez de manter
 uma abstração vazia.
 
+Esse argumento de trocabilidade não fica no discurso: o suporte a **qualquer
+endpoint OpenAI-compatível** (vLLM, Ollama, LM Studio, llama.cpp, TGI,
+LocalAI...) via `EMPORIO_OPENAI_BASE_URL` e a imagem **Docker** que sobe com um
+comando são a prova concreta de que *"o provedor é um valor de configuração"* —
+hospedado ou local, sem mudar código. Detalhes em
+[*Rodar com um modelo local / self-hosted*](#rodar-com-um-modelo-local--self-hosted)
+e [*Rodar com Docker*](#rodar-com-docker-sem-setup-local-de-python).
+
 ---
 
 ## Comportamentos que valem destacar
@@ -174,8 +269,17 @@ Casos de borda presentes nos dados e tratados de forma deliberada:
   sugere similares.
 - **Pedidos cancelados não têm rastreio** → o agente explica o status e o motivo
   em vez de inventar um código.
-- **Escopo**: a loja só vende instrumentos; pedidos de acessórios (cordas,
+- **Escopo**: a loja só vende instrumentos; pedidos de acessórios (palhetas,
   pedais, cabos...) são recusados com gentileza.
+- **Busca por nome tolerante a erros** → uma camada de busca
+  (`data/search.py`) normaliza acentos/caixa, mapeia sinônimos de categoria
+  ("sax" → "Instrumentos de Sopro (Madeiras)") e faz *fuzzy matching* de nomes
+  de produto com `rapidfuzz` (ex.: "takamine gd" encontra o modelo certo mesmo
+  com a grafia parcial).
+- **"Cordas" é ambíguo e tratado como tal** → pode ser a categoria "Cordas
+  Orquestrais" (violinos, violas, violoncelos) ou cordas avulsas de reposição
+  (acessório fora de escopo). Em vez de adivinhar, a camada de dados sinaliza a
+  ambiguidade e o agente pede esclarecimento.
 
 Veja [`examples/`](examples/) para transcrições reais cobrindo esses cenários.
 
@@ -199,13 +303,15 @@ python -m evals.run --live  # + Tier 3 (qualidade de resposta, requer chave de A
 
 | Tier | O que mede | Score |
 |---|---|---|
-| **1 — Núcleo determinístico** | pricing, dados, chunking, validação (pytest) | **27/27** |
+| **1 — Núcleo determinístico** | pricing, dados, chunking, validação, busca/desambiguação, trace (pytest) | **42/42** |
 | **2 — Roteamento de tools** | tool correta por mensagem (offline) | **12/12** |
-| **3 — Qualidade de resposta** | contratos vs. ground truth do `StoreData` | requer chave de API |
+| **3 — Qualidade de resposta** | contratos vs. ground truth do `StoreData` (live) | **6/6** |
 
 > Tier 1 e 2 rodam offline, sem chave — os números acima são reais (medidos com
-> `python -m evals.run`). A Tier 3 é opt-in e depende de um modelo real, então
-> não fixamos um número aqui em vez de inventá-lo.
+> `python -m evals.run`). A Tier 3 é opt-in e depende de um modelo real: o
+> `6/6` acima foi medido com `anthropic:claude-sonnet-4-5` via
+> `python -m evals.run --live`; o resultado varia conforme o modelo configurado
+> (um 7B local, por exemplo, falha vários contratos).
 
 ---
 
@@ -217,8 +323,9 @@ python -m evals.run --live  # + Tier 3 (qualidade de resposta, requer chave de A
   os casos e pontuar também os argumentos das tools.
 - **Desambiguação de pedido** exige o número do pedido; um fluxo por
   nome/telefone (cruzando `customers`) seria mais natural.
-- **Busca de produtos** é por substring; em catálogos maiores, busca
-  fuzzy/semântica sobre nomes ajudaria.
+- **Busca de produtos** já tolera acentos/caixa, sinônimos de categoria e erros
+  de grafia (fuzzy via `rapidfuzz`, em `data/search.py`); em catálogos muito
+  maiores, busca semântica por embeddings sobre os nomes seria o próximo passo.
 
 ---
 

@@ -13,7 +13,7 @@ import sys
 import time
 import unicodedata
 
-from .config import MODEL
+from .config import MODEL, OPENAI_BASE_URL
 from .session import ChatSession
 from .trace import format_trace
 
@@ -67,6 +67,9 @@ def _format_reply(text: str) -> str:
 def _credential_hint() -> str | None:
     """Return a friendly message if the selected provider's credential is
     missing, else ``None``. Avoids a cryptic provider error at first call."""
+    # A self-hosted OpenAI-compatible endpoint needs no real key.
+    if OPENAI_BASE_URL:
+        return None
     provider = MODEL.split(":", 1)[0]
     if provider == "ollama":
         if not os.environ.get("OLLAMA_BASE_URL"):

@@ -1,0 +1,30 @@
+# Single service — the prototype needs no orchestration.
+#
+# Interactive use:
+#   docker compose build
+#   docker compose run --rm app
+#
+# Use `run` (not `up`): the CLI is interactive, so it needs the TTY attached and
+# the container to exit cleanly when you type /sair.
+services:
+  app:
+    build: .
+    image: emporio-agente
+    # Config + secrets at runtime only (never baked into an image layer).
+    # Requires a local .env — `cp .env.example .env` and fill in your key, or
+    # point EMPORIO_OPENAI_BASE_URL at a self-hosted model (see README).
+    env_file: .env
+    # Model weights + computed embeddings persist here, so they download once.
+    volumes:
+      - emporio-cache:/cache
+    # Interactive CLI needs stdin + a TTY.
+    stdin_open: true
+    tty: true
+    # Lets the container reach a model server running on the HOST (Ollama, vLLM,
+    # LM Studio, ...) via http://host.docker.internal:<port>. Harmless when you
+    # use a hosted provider.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  emporio-cache:

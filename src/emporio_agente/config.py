@@ -40,6 +40,14 @@ EMBEDDING_CACHE = Path(
 #   "ollama:llama3.1"  (local)
 MODEL = os.environ.get("EMPORIO_MODEL", "anthropic:claude-sonnet-4-5")
 
+# Optional OpenAI-compatible base URL. When set, the chat model is routed
+# through this endpoint instead of the named cloud provider, so ANY
+# OpenAI-compatible server works (vLLM, Ollama, LM Studio, llama.cpp server,
+# text-generation-inference, LocalAI, ...). The model name comes from the part
+# of EMPORIO_MODEL after the optional "provider:" prefix; OPENAI_API_KEY may be
+# a placeholder, since local servers usually don't require a real key.
+OPENAI_BASE_URL = os.environ.get("EMPORIO_OPENAI_BASE_URL") or None
+
 # --- Embedding model (local, on-GPU via sentence-transformers) -------------
 # BGE-M3 is multilingual and strong on PT-BR. MiniLM is the lighter fallback
 # if reviewer setup time matters more than retrieval quality (see README).

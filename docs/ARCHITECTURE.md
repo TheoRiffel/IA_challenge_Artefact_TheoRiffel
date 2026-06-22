@@ -88,6 +88,14 @@ técnica obrigatória* do desafio é usar Python, optou-se por Pydantic AI, que
 entrega exatamente a mesma trocabilidade respeitando a restrição. Foi uma
 decisão consciente, não um acidente.
 
+**Prova concreta da trocabilidade.** "O provedor é um valor de configuração"
+deixa de ser slogan quando qualquer servidor **OpenAI-compatível** funciona sem
+tocar no código: basta `EMPORIO_OPENAI_BASE_URL` apontando para o endpoint local
+(vLLM, Ollama, LM Studio, llama.cpp, TGI, LocalAI, ...) e `EMPORIO_MODEL` com o
+nome do modelo servido. `build_agent` resolve isso em um único ponto
+(`agent.py`); o resto do sistema não percebe a diferença. Veja o passo a passo
+no README.
+
 ### 3.2 Agente fino, tools "gordas"
 
 Toda a lógica de negócio (cálculo de melhor preço, "pedido cancelado não tem
@@ -116,9 +124,12 @@ embutida nos dados que o agente passa.
   Dividimos nessas fronteiras para que cada chunk seja uma unidade coerente de
   política, em vez de janelas de tamanho fixo que poderiam cortar uma regra ao
   meio. Resultado: 26 chunks.
-- **Embeddings locais (BGE-M3)** via sentence-transformers, na GPU, calculados
-  uma vez e cacheados em disco (`.embeddings.pkl`). Zero custo de API e
-  reprodutível offline.
+- **Embeddings locais (BGE-M3)** via sentence-transformers, calculados uma vez
+  e cacheados em disco (`.embeddings.pkl`). Rodam na GPU se houver, ou na CPU
+  (é o caso da imagem Docker). **São totalmente locais** — nenhuma chamada de
+  API, nenhum dado sai da máquina. Consequência importante: **só o modelo de
+  chat precisa de chave**; apontando-o para um servidor local (seção 3.1), o
+  sistema inteiro roda **sem nenhuma API paga**.
 - **Sem banco vetorial**: com 26 chunks, similaridade de cosseno em numpy é
   tudo que é preciso — mais rápido, mais simples e reprodutível. Rejeitar um
   vector DB aqui é uma escolha consciente de escala, espelhando a decisão de não
