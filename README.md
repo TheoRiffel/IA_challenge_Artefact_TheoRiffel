@@ -326,6 +326,9 @@ python -m evals.run --live  # + Tier 3 (qualidade de resposta, requer chave de A
 - **Busca de produtos** já tolera acentos/caixa, sinônimos de categoria e erros
   de grafia (fuzzy via `rapidfuzz`, em `data/search.py`); em catálogos muito
   maiores, busca semântica por embeddings sobre os nomes seria o próximo passo.
+- **Escalabilidade**: A medida que os documentos sobre a política da empresa aumentarem,
+  o sistema atual armazenado em memório provavelmente falharia. A solução seria migrar para uma
+  base vetorial dos embeddings. 
 
 ---
 
